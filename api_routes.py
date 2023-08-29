@@ -1,8 +1,9 @@
 from flask import Flask,jsonify,request
 from flask_sqlalchemy import SQLAlchemy
-from model import Customer,db,Product
+from model import Customer,db,Product,Customer_orders
 from werkzeug.utils import secure_filename
 import os,json,secrets
+from datetime import datetime
 
 app=Flask(__name__)
 basedir = os.path.abspath(os.path.dirname(__file__))
@@ -233,6 +234,102 @@ def updateProduct(product_id):
     except Exception as e:
         return jsonify({'error':str(e)})
 
+@app.route('/createOrder',methods=['POST'])
+def createOrder():
+    try:
+        customer_id=request.form.get('customer_id')
+        product_id=request.form.get('product_id')
+        session = db.session
+        customer = session.query(Customer).get(customer_id)
+        session = db.session
+        product = session.query(Product).get(product_id)
+        if customer is None or product is None:
+            return jsonify({'error':'customer or product is not found'})
+        price=request.form.get('price')
+        date_of_purchase_str = request.form.get('date_of_purchase')
+        date_format_in_request = '%Y-%m-%d'
+        date_of_purchase = datetime.strptime(date_of_purchase_str, date_format_in_request).date()
+        total_paid=request.form.get('total_paid')
+        order_status_str = request.form.get('order_status')
+        order_status = bool(order_status_str.lower() == 'true')
+        new_order=Customer_orders(customer_id=customer_id,product_id=product_id,price=price,date_of_purchase=date_of_purchase,total_paid=total_paid,order_status=order_status)
+        session=db.session
+        session.add(new_order)
+        session.commit()
+        return jsonify({'message':'Order placed successfully'})
+    except Exception as e:
+        return jsonify({'error':str(e)})
+    
+@app.route('/getAllOrder',methods=['GET'])
+def getAllOrder():
+    try:
+        session=db.session
+        orders=session.query(Customer_orders).all()
+        list_of_order=[]
+        for order in orders:
+            order_data={
+                'order_id':order.order_id,
+                'customer_id':order.customer_id,
+                'product_id':order.product_id,
+                'price':order.price,
+                'date_of_purchase': order.date_of_purchase.strftime('%Y-%m-%d'),
+                'total_paid':order.total_paid,
+                'order_status':order.order_status
+            }
+            list_of_order.append(order_data)
+        return jsonify(list_of_order),200
+    except Exception as e:
+        return jsonify({'error':str(e)}),500
+
+@app.route('/getOrdersByCustomerId/<int:customer_id>', methods=['GET'])
+def getOrdersByCustomerId(customer_id):
+    try:
+        session=db.session
+        customer_orders = session.query(Customer_orders).filter_by(customer_id=customer_id).all()
+        
+        if not customer_orders:
+            return jsonify({'error':'customer order is not found'})
+
+        customer_orders_list = []
+        for order in customer_orders:
+            order_dict = {
+                'order_id': order.order_id,
+                'product_id': order.product_id,
+                'price': order.price,
+                'date_of_purchase': order.date_of_purchase.strftime('%Y-%m-%d'),
+                'total_paid': order.total_paid,
+                'order_status': order.order_status
+            }
+            customer_orders_list.append(order_dict)
+
+        return jsonify({'customer_orders': customer_orders_list})
+    except Exception as e:
+        return jsonify({'error': str(e)})
+
+@app.route('/updateCustomerOrder/<int:order_id>',methods=['PUT'])
+def updateCustomerOrder(order_id):
+    try:
+        session = db.session
+        order = session.query(Customer_orders).get(order_id)
+
+        if not order:
+            return jsonify({'error': 'Order not found'})
+
+        update_data = {
+            'customer_id': request.form.get('customer_id'),
+            'product_id': request.form.get('product_id'),
+            'price': request.form.get('price'),
+            'date_of_purchase': datetime.strptime(request.form.get('date_of_purchase'), '%Y-%m-%d').date(),
+            'total_paid':request.form.get('total_paid'),
+            'order_status': bool(request.form.get('order_status').lower() == 'true')
+        }
+        for key, value in update_data.items():
+            if value is not None:
+                setattr(order, key, value)
+        session.commit()
+        return jsonify({'message': 'Customer order data updated successfully'})
+    except Exception as e:
+        return jsonify({'error': str(e)})
 
 if __name__ == '__main__':
    app.run(debug=True)

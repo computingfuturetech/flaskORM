@@ -9,7 +9,7 @@ app=Flask(__name__)
 
 basedir = os.path.abspath(os.path.dirname(__file__))
 
-db_file = os.path.join(app.root_path, 'database.db')
+db_file = os.path.join(app.root_path, 'test.db')
 app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_file}'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
@@ -31,8 +31,8 @@ class Product(db.Model):
 
 class Customer_orders(db.Model):
     order_id=db.Column(db.Integer,primary_key=True, autoincrement=True)
-    customer_id=db.Column(db.Integer, ForeignKey('customer.id'))
-    product_id=db.Column(db.Integer, ForeignKey('product.product_id'))
+    customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'))
+    product_id=db.Column(db.Integer, db.ForeignKey('product.product_id'))
     price=db.Column(db.Float,nullable=False)
     date_of_purchase=db.Column(db.Date, nullable=False)
     total_paid=db.Column(db.Float,nullable=False)
